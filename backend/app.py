@@ -5,8 +5,16 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from .ai import generate_lesson
-from .history import (clear_history, create_session, get_history, get_progress, get_quiz_history, get_session, save_quiz_result)
-from .models import LearnRequest, QuizSubmission
+from .history import (
+    clear_history,
+    create_session,
+    get_history,
+    get_progress,
+    get_quiz_history,
+    get_session,
+    save_quiz_result,
+)
+from models import LearnRequest, QuizSubmission
 
 # Automatically find and load .env no matter where you run the command from
 load_dotenv(find_dotenv(), override=True)
