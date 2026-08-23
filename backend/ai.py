@@ -30,6 +30,7 @@ def generate_lesson(topic: str, mode: str) -> dict:
     try:
         client = Groq(api_key=api_key)
         prompt = get_learn_prompt(topic=topic, mode=mode)
+
         logger.info("Sending request to Groq -> mode=%s", mode)
 
         response = client.chat.completions.create(
@@ -41,8 +42,9 @@ def generate_lesson(topic: str, mode: str) -> dict:
                         "You are LearnWise AI, an expert educational tutor. "
                         "CRITICAL RULES: "
                         "1. You MUST return ONLY a valid, COMPLETE JSON object. "
-                        "2. Your JSON MUST contain exactly these 3 keys: 'explanation', 'key_concepts', and 'quiz'. Do not miss any! "
-                        "3. Keep the 'explanation' concise (UNDER 400 words) so you do not run out of tokens. "
+                        "2. Your JSON MUST contain exactly these 3 keys: "
+                        "'explanation', 'key_concepts', and 'quiz'. "
+                        "3. Keep the explanation concise (UNDER 400 words). "
                         "4. Output RAW JSON ONLY. No markdown, no extra text."
                     ),
                 },
@@ -57,33 +59,45 @@ def generate_lesson(topic: str, mode: str) -> dict:
 
         content = response.choices[0].message.content
 
-        # ====================================================
-        # THE ULTIMATE JSON FIX (WITH THINKING REMOVER)
-        # ====================================================
         try:
-            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
-            start_idx = content.find('{')
-            end_idx = content.rfind('}')
-            
+            content = re.sub(
+                r"<think>.*?</think>",
+                "",
+                content,
+                flags=re.DOTALL
+            ).strip()
+
+            start_idx = content.find("{")
+            end_idx = content.rfind("}")
+
             if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                json_str = content[start_idx:end_idx+1]
+                json_str = content[start_idx:end_idx + 1]
                 raw_data = json.loads(json_str)
             else:
                 raise ValueError("No JSON object found in the AI response.")
-                
+
         except Exception as error:
-            logger.error("Invalid JSON returned by Groq. Raw content: %s", content)
+            logger.error(
+                "Invalid JSON returned by Groq. Raw content: %s",
+                content
+            )
             raise RuntimeError("AI returned invalid JSON.") from error
 
-        # ----------------------------------------------------
-        # PYDANTIC VALIDATION
-        # ----------------------------------------------------
         validated_data = LearnResponse(**raw_data)
+
         logger.info("Lesson successfully validated.")
+
         return validated_data.model_dump()
 
     except RuntimeError:
         raise
+
     except Exception as error:
-        logger.error("Groq generation failed: %s", error, exc_info=True)
-        raise RuntimeError(f"Groq generation failed: {error}") from error
+        logger.error(
+            "Groq generation failed: %s",
+            error,
+            exc_info=True
+        )
+        raise RuntimeError(
+            f"Groq generation failed: {error}"
+        ) from error
